@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MT-VIKI Matrix",
+        "description": "Enter the network address of your MT-VIKI matrix.",
+        "data": {
+          "host": "Host / IP address",
+          "port": "TCP port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the matrix at that address and port."
+    },
+    "abort": {
+      "already_configured": "This matrix is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MT-VIKI Matrix options",
+        "description": "Name each input and output, and set how often Home Assistant polls the matrix for its current state.",
+        "data": {
+          "scan_interval": "Poll interval (seconds)",
+          "input_1": "Input 1 name",
+          "input_2": "Input 2 name",
+          "input_3": "Input 3 name",
+          "input_4": "Input 4 name",
+          "input_5": "Input 5 name",
+          "input_6": "Input 6 name",
+          "input_7": "Input 7 name",
+          "input_8": "Input 8 name",
+          "output_1": "Output 1 name",
+          "output_2": "Output 2 name",
+          "output_3": "Output 3 name",
+          "output_4": "Output 4 name",
+          "output_5": "Output 5 name",
+          "output_6": "Output 6 name",
+          "output_7": "Output 7 name",
+          "output_8": "Output 8 name"
+        }
+      }
+    }
+  }
+}
