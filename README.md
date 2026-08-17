@@ -13,9 +13,14 @@ A custom [Home Assistant](https://www.home-assistant.io/) integration to control
 
 ## Installation
 
-### HACS (custom repository)
-1. HACS → ⋮ → *Custom repositories* → add this repository, category **Integration**.
-2. Install **MT-VIKI Matrix**, then restart Home Assistant.
+### HACS (recommended)
+Add this repository as a **custom repository** of type *Integration*, install
+**MT-VIKI Matrix**, then restart Home Assistant.
+
+1. In HACS, open the **⋮** menu → **Custom repositories**.
+2. Repository: `https://github.com/harryjms/mt-viki-mt-hd0808-w-home-assistant` —
+   Category: **Integration** → **Add**.
+3. Search for and download **MT-VIKI Matrix**, then **restart Home Assistant**.
 
 ### Manual
 Copy `custom_components/mt_viki_matrix` into your Home Assistant `config/custom_components/`
