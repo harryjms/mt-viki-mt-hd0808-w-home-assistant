@@ -1,7 +1,8 @@
 """Output select entities for the MT-VIKI matrix.
 
 One select per output. Its options are the inputs, each labelled with the input
-number and configured name (e.g. ``3: Apple TV``). Selecting an option routes that
+number and the input entity's name as shown in Home Assistant (e.g. ``3: Apple TV``),
+so renaming an input entity updates the dropdowns. Selecting an option routes that
 input to the output.
 """
 
@@ -63,9 +64,10 @@ class MatrixOutputSelect(CoordinatorEntity[MtVikiCoordinator], SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        """Input labels, one per input: ``<number>: <configured name>``."""
+        """Input labels, one per input: ``<number>: <input entity name>``."""
         return [
-            input_option_label(self._entry, i) for i in range(1, INPUTS + 1)
+            input_option_label(self.hass, self._entry, i)
+            for i in range(1, INPUTS + 1)
         ]
 
     @property
@@ -74,7 +76,7 @@ class MatrixOutputSelect(CoordinatorEntity[MtVikiCoordinator], SelectEntity):
         input_ch = (self.coordinator.data or {}).get(self._output)
         if input_ch is None:
             return None
-        return input_option_label(self._entry, input_ch)
+        return input_option_label(self.hass, self._entry, input_ch)
 
     async def async_select_option(self, option: str) -> None:
         """Route the chosen input to this output."""

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
-from .const import CONF_INPUT_NAMES, CONF_OUTPUT_NAMES, INPUTS, OUTPUTS
+from .const import CONF_INPUT_NAMES, CONF_OUTPUT_NAMES, DOMAIN, INPUTS, OUTPUTS
 
 
 def default_input_names() -> list[str]:
@@ -37,6 +39,29 @@ def output_name(entry: ConfigEntry, channel: int) -> str:
     return _name(names, default_output_names(), channel)
 
 
-def input_option_label(entry: ConfigEntry, channel: int) -> str:
-    """Dropdown label for an input: its number and configured name, e.g. ``3: Apple TV``."""
-    return f"{channel}: {input_name(entry, channel)}"
+def input_display_name(
+    hass: HomeAssistant, entry: ConfigEntry, channel: int
+) -> str:
+    """Display name for input ``channel``, honouring the user's HA entity rename.
+
+    Prefers the input sensor entity's name as shown in Home Assistant (a custom
+    rename in the entity registry, else its original name), so renaming the input
+    entity in the UI also updates the output dropdowns. Falls back to the
+    integration's configured/default input name if the entity isn't registered yet.
+    """
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_in_{channel}"
+    )
+    if entity_id and (entity := registry.async_get(entity_id)):
+        name = entity.name or entity.original_name
+        if name:
+            return name
+    return input_name(entry, channel)
+
+
+def input_option_label(
+    hass: HomeAssistant, entry: ConfigEntry, channel: int
+) -> str:
+    """Dropdown label for an input: its number and display name, e.g. ``3: Apple TV``."""
+    return f"{channel}: {input_display_name(hass, entry, channel)}"
