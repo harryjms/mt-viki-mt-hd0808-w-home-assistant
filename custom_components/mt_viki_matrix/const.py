@@ -31,7 +31,10 @@ LINE_TERMINATOR = "\r\n"
 SWITCH_COMMAND = "SW {input} {output}"
 
 # The read/query-state command is undocumented for these units. We send a best-guess
-# query and parse whatever comes back (see matrix.parse_state_response). The candidates
-# are tried in order until one yields a parseable reply. Kept here so they are trivial
-# to adjust once a real device response is captured (enable DEBUG logging to see it).
-QUERY_COMMANDS = ["Status", "STATUS", "SW?", "read"]
+# query and parse the reply (see matrix.parse_state_response). Candidates are tried in
+# order until one yields a parseable reply; the probe then stops (see async_query_state).
+# The device answers a switch with an "SWS <per-output input>" status line, so the query
+# most likely to elicit the same line is a bare "SWS"/"SW" or a period-terminated status
+# verb (the RS232 manual notes commands end with "."). Kept here so they are trivial to
+# adjust once a real device response is captured (enable DEBUG logging to see it).
+QUERY_COMMANDS = ["SWS", "SW", "STATUS.", "Status.", "STA.", "READ."]

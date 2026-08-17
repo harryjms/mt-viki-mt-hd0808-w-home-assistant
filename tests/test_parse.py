@@ -29,6 +29,18 @@ _matrix = importlib.import_module("mt_viki_matrix.matrix")
 parse_state_response = _matrix.parse_state_response
 
 
+def test_sws_status_line():
+    # Confirmed MT-VIKI HD0808 format: reply to a "SW" command / status line.
+    text = "SWS 1 2 3 4 5 1 7 8\r\n"
+    result = parse_state_response(text, outputs=8, inputs=8)
+    assert result == {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 1, 7: 7, 8: 8}
+
+
+def test_sws_wrong_count_falls_through():
+    # An SWS line with too few numbers must not be accepted as complete state.
+    assert parse_state_response("SWS 1 2 3\r\n", outputs=8, inputs=8) is None
+
+
 def test_labelled_out_in_pairs():
     text = "OUT01 IN03\nOUT02 IN01\nOUT03 IN08\nOUT04 IN04\nOUT05 IN05\nOUT06 IN06\nOUT07 IN07\nOUT08 IN02\n"
     result = parse_state_response(text, outputs=8, inputs=8)

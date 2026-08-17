@@ -50,17 +50,21 @@ connection at a time, so Home Assistant never holds the socket open).
 
 ## Keeping in sync (and improving readback)
 
-The **switch** command is well established for these units. The **read-current-state**
-command is *not* publicly documented, so this integration is deliberately resilient:
+The matrix answers a switch (`SW <in> <out>`) with a full status line of the form
+`SWS <in-for-out1> <in-for-out2> … <in-for-out8>`. The integration parses that line, so
+**every switch made in Home Assistant instantly syncs all eight outputs** to the device's
+real routing (see `parse_state_response` in `custom_components/mt_viki_matrix/matrix.py`).
 
-- On each poll it sends a best-guess status query and parses whatever the device returns
-  (see `parse_state_response` in `custom_components/mt_viki_matrix/matrix.py`, which handles
-  several common reply shapes).
-- If the device returns nothing parseable, Home Assistant **keeps its optimistically-tracked
-  state** (updated from the commands it sends) instead of clearing every entity.
+For passive polling, the **read-only** status-query command is *not* publicly documented,
+so the integration is deliberately resilient:
 
-If you want exact hardware readback — so changes made from the matrix's own front panel are
-reflected in Home Assistant — capture your unit's real reply and tune the parser:
+- On each poll it probes a short list of candidate query commands (`QUERY_COMMANDS` in
+  `const.py`). If one returns a parseable `SWS` line, that command is remembered and used
+  for continuous sync — including changes made from the matrix's own front panel.
+- If no query works, the integration stops probing (to keep polls fast) and Home Assistant
+  **keeps its last known state**, updating whenever you switch from Home Assistant.
+
+If polling doesn't pick up front-panel changes, capture your unit's real reply and tune it:
 
 1. Add to `configuration.yaml` and restart:
    ```yaml
@@ -68,9 +72,10 @@ reflected in Home Assistant — capture your unit's real reply and tune the pars
      logs:
        custom_components.mt_viki_matrix: debug
    ```
-2. Watch the log; the raw device replies are logged as `Query ... raw reply: ...`.
-3. Adjust `QUERY_COMMANDS` in `const.py` and/or `parse_state_response` in `matrix.py` to
-   match your unit's format, or open an issue with the captured reply.
+2. Watch the log; raw replies are logged as `Query ... raw reply: ...` and
+   `Switch ... reply: ...`.
+3. Add the working command to `QUERY_COMMANDS` in `const.py` (or open an issue with the
+   captured reply) so passive polling can read state too.
 
 ## Development
 

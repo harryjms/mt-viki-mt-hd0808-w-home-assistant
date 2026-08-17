@@ -50,10 +50,16 @@ class MtVikiCoordinator(DataUpdateCoordinator[dict[int, int]]):
         return self.data or {}
 
     async def async_set_route(self, output_ch: int, input_ch: int) -> None:
-        """Switch ``input_ch`` to ``output_ch`` and update state optimistically."""
-        await self.client.async_switch(input_ch, output_ch)
+        """Switch ``input_ch`` to ``output_ch`` and update state from the reply.
+
+        The matrix answers a switch with its full ``SWS`` status line, so when that
+        parses we adopt the complete real map (syncing every output at once). If it
+        doesn't parse, we fall back to an optimistic single-output update.
+        """
+        full_state = await self.client.async_switch(input_ch, output_ch)
+        if full_state:
+            self.async_set_updated_data(full_state)
+            return
         new_state = dict(self.data or {})
         new_state[output_ch] = input_ch
         self.async_set_updated_data(new_state)
-        # Confirm against the device on the next cycle.
-        await self.async_request_refresh()

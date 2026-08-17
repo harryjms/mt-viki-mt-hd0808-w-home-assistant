@@ -29,6 +29,9 @@ def parse_state_response(
     The read command for these units is undocumented, so this scans for a few
     plausible response shapes rather than assuming one exact format:
 
+    * ``SWS 1 2 3 4 5 1 7 8`` — the device's own status line (also returned as the
+      reply to a ``SW`` switch command); ``SWS`` followed by one input number per
+      output, in order. This is the confirmed format for the MT-VIKI HD0808.
     * ``OUT01 IN03`` / ``O1 I3`` (labelled pairs, any separator/zero-padding)
     * ``Output 1: Input 3`` / ``Out 1 -> 3`` (labelled, word forms)
     * a bare compact table of one input digit per output, e.g. ``31245678``
@@ -39,6 +42,16 @@ def parse_state_response(
     """
     if not text:
         return None
+
+    # Shape 0: the device's native ``SWS`` status line. Take the run of numbers
+    # after the ``SWS`` token, positionally: value N is the input feeding output N.
+    for line in text.splitlines():
+        match = re.search(r"SWS[\s:]*([\d\s]+)", line, re.IGNORECASE)
+        if not match:
+            continue
+        numbers = [int(n) for n in match.group(1).split()]
+        if len(numbers) == outputs and all(1 <= n <= inputs for n in numbers):
+            return {out: inp for out, inp in enumerate(numbers, start=1)}
 
     result: dict[int, int] = {}
 
@@ -88,6 +101,8 @@ class MatrixClient:
         self._lock = asyncio.Lock()
         # Once a query command yields a parseable reply, prefer it on later polls.
         self._working_query: str | None = None
+        # None = untried, True = a query works, False = none do (stop probing).
+        self._query_supported: bool | None = None
 
     async def _send(self, command: str, read_reply: bool) -> str:
         """Open a connection, send ``command`` + terminator, optionally read a reply."""
@@ -130,21 +145,35 @@ class MatrixClient:
                 except (OSError, asyncio.TimeoutError):
                     pass
 
-    async def async_switch(self, input_ch: int, output_ch: int) -> None:
-        """Route ``input_ch`` to ``output_ch``."""
+    async def async_switch(
+        self, input_ch: int, output_ch: int
+    ) -> dict[int, int] | None:
+        """Route ``input_ch`` to ``output_ch``.
+
+        The matrix replies with its full ``SWS`` status line, so this returns the
+        complete parsed routing map when available — letting the caller sync every
+        output at once, not just the one it changed.
+        """
         command = SWITCH_COMMAND.format(input=input_ch, output=output_ch)
         reply = await self._send(command, read_reply=True)
         _LOGGER.debug("Switch %s reply: %r", command, reply)
         if "ERR" in reply.upper():
             raise MatrixError(f"Matrix rejected command {command!r}: {reply!r}")
+        return parse_state_response(reply, self._outputs, self._inputs)
 
     async def async_query_state(self) -> dict[int, int] | None:
         """Best-effort read of the current routing map.
 
-        Tries each candidate query command until one yields a parseable reply.
-        Returns ``None`` if the device answers nothing usable, so the caller can
-        fall back to its optimistically-tracked state.
+        Tries each candidate query command until one yields a parseable reply, and
+        remembers the winner for next time. If a full probe finds nothing usable,
+        it stops probing on later calls (returning ``None`` immediately) so polls
+        stay fast and the caller can rely on optimistically-tracked state instead.
         """
+        # A previous full probe found no working query: don't keep hammering the
+        # device with commands it ignores every poll.
+        if self._query_supported is False:
+            return None
+
         # Prefer a command already known to work, then the rest.
         candidates = QUERY_COMMANDS
         if self._working_query:
@@ -158,7 +187,14 @@ class MatrixClient:
             parsed = parse_state_response(reply, self._outputs, self._inputs)
             if parsed:
                 self._working_query = command
+                self._query_supported = True
                 return parsed
+
+        self._query_supported = False
+        _LOGGER.info(
+            "No status-query command worked; HA will sync from switch replies "
+            "instead. Enable debug logging to capture the device's replies."
+        )
         return None
 
     async def async_test_connection(self) -> None:
